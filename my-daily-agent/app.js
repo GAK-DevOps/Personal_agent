@@ -183,48 +183,81 @@ class DailyAgent {
 
     generateResponse(message) {
         const lowerMessage = message.toLowerCase();
+        const userName = this.settings.userName || 'there';
 
-        // Task-related responses
-        if (lowerMessage.includes('add') && (lowerMessage.includes('task') || lowerMessage.includes('reminder'))) {
-            this.openAddTaskModal();
-            return "Great! I've opened the task creation form for you. What would you like to be reminded about?";
+        // Greeting patterns
+        if (/\b(hi|hello|hey|greetings|morning|afternoon|evening)\b/.test(lowerMessage)) {
+            const hour = new Date().getHours();
+            let timeGreeting = 'Hello';
+            if (hour < 12) timeGreeting = 'Good morning';
+            else if (hour < 17) timeGreeting = 'Good afternoon';
+            else timeGreeting = 'Good evening';
+
+            const greetings = [
+                `${timeGreeting}, ${userName}! How can I help you today?`,
+                `Hi ${userName}! I'm ready to help you manage your day.`,
+                `Hey! Hope you're having a productive day so far. What can I do for you?`,
+                `Hello! Ready to conquer your schedule?`
+            ];
+            return greetings[Math.floor(Math.random() * greetings.length)];
         }
 
-        if (lowerMessage.includes('schedule') || lowerMessage.includes('today')) {
+        // Action: Add Task
+        if (/\b(add|create|new|remind|set)\b.*\b(task|reminder|todo|appointment)\b/.test(lowerMessage) ||
+            /\bremind me\b/.test(lowerMessage)) {
+            this.openAddTaskModal();
+            return `Of course! I've opened the task form. Tell me what "${userName}" needs to get done!`;
+        }
+
+        // Action: Check Schedule
+        if (/\b(schedule|tasks|agenda|today|to do|doing)\b/.test(lowerMessage)) {
             const todayTasks = this.getTodayTasks();
             if (todayTasks.length === 0) {
-                return "You don't have any tasks scheduled for today. Would you like to add some?";
+                return `Currently, your schedule for today is completely clear, ${userName}. A perfect time to plan something new!`;
             }
-            return `You have ${todayTasks.length} task(s) scheduled for today. Check your schedule section below!`;
+            const pending = todayTasks.filter(t => !t.completed).length;
+            if (pending === 0) {
+                return `You've actually finished everything on your list for today! Great job, ${userName}!`;
+            }
+            return `You have ${todayTasks.length} tasks today, with ${pending} still to go. I've listed them below for you.`;
         }
 
-        if (lowerMessage.includes('time') || lowerMessage.includes('what time')) {
+        // Action: Time
+        if (/\b(time|clock|date|day)\b/.test(lowerMessage)) {
             const now = new Date();
-            return `It's currently ${now.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            })}`;
+            const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            return `It's currently ${timeStr} on this lovely ${dateStr}.`;
         }
 
-        if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-            const greeting = this.settings.userName
-                ? `Hi ${this.settings.userName}!`
-                : 'Hello!';
-            return `${greeting} How can I help you stay productive today?`;
+        // Action: How are you?
+        if (/\b(how are you|how's it going|how you doing)\b/.test(lowerMessage)) {
+            return `I'm functioning perfectly and ready to help you! How are things with you, ${userName}?`;
         }
 
-        if (lowerMessage.includes('help')) {
-            return "I can help you with:\n• Adding and managing tasks\n• Setting up daily routines\n• Reminding you at the right time\n• Tracking your productivity\n\nJust tell me what you need!";
+        // Action: Thank you
+        if (/\b(thanks|thank you|thx|cheers)\b/.test(lowerMessage)) {
+            const responses = [
+                `You're very welcome, ${userName}! Any time.`,
+                `My pleasure! Happy to help.`,
+                `No problem at all! Just doing my job.`,
+                `Glad I could help!`
+            ];
+            return responses[Math.floor(Math.random() * responses.length)];
         }
 
-        // Pattern learning responses
-        if (lowerMessage.includes('every') || lowerMessage.includes('daily')) {
-            return "It sounds like you want to set up a recurring routine. Use the 'Add Task' button and select which days you want it to repeat!";
+        // Pattern learning: Recurring
+        if (/\b(every|daily|weekly|always)\b/.test(lowerMessage)) {
+            return `I noticed you're talking about a routine. You can set tasks to repeat on specific days in the 'Add Task' menu!`;
         }
 
-        // Default helpful response
-        return "I'm learning about your preferences! Could you tell me more about what you'd like me to help with? You can add tasks, set routines, or ask me about your schedule.";
+        // Help
+        if (lowerMessage.includes('help') || lowerMessage === '?') {
+            return `I'm Lokha, your personal assistant. Here's what I can do:\n• Manage your schedule and set reminders\n• Learn your daily routines\n• Track your productivity stats\n• Keep you organized via voice or text!\n\nJust tell me what's on your mind.`;
+        }
+
+        // Default
+        return `I'm listening, ${userName}! I'm still learning your patterns, but I can certainly help you with your schedule or reminders if you'd like.`;
     }
 
     escapeHtml(text) {
@@ -480,16 +513,17 @@ class DailyAgent {
     checkReminders() {
         const now = new Date();
         const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
         const todayTasks = this.getTodayTasks();
 
         todayTasks.forEach(task => {
             if (!task.completed && task.enableReminder) {
-                const taskTime = task.time;
+                if (!task.reminded) task.reminded = {};
+                const today = new Date().toDateString();
 
-                // Check if it's time for reminder
-                if (this.shouldRemind(currentTime, taskTime)) {
+                if (this.shouldRemind(currentTime, task.time) && task.reminded[today] !== currentTime) {
+                    task.reminded[today] = currentTime;
                     this.sendReminder(task);
+                    this.saveData();
                 }
             }
         });
@@ -508,22 +542,32 @@ class DailyAgent {
     }
 
     sendReminder(task) {
-        // Browser notification
-        if (this.settings.enableNotifications && Notification.permission === 'granted') {
-            new Notification('Task Reminder', {
+        // Use Service Worker for better mobile support if available
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification('Lokha Task Reminder', {
+                    body: `Time for: ${task.title}`,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png',
+                    tag: `task-${task.id}`
+                });
+            });
+        } else if (this.settings.enableNotifications && Notification.permission === 'granted') {
+            new Notification('Lokha Task Reminder', {
                 body: `Time for: ${task.title}`,
-                icon: '🤖',
-                tag: `task-${task.id}`
+                icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png'
             });
         }
 
-        // Sound notification
         if (this.settings.enableSound) {
             this.playNotificationSound();
         }
 
-        // Chat notification
-        this.addMessageToChat('agent', `⏰ Reminder: It's time for "${task.title}"!`);
+        const reminderMsg = `⏰ Reminder: It's time for "${task.title}"!`;
+        this.addMessageToChat('agent', reminderMsg);
+
+        if (this.settings.enableVoiceResponse) {
+            this.speak(`Pardon me, it is time for ${task.title}.`);
+        }
     }
 
     playNotificationSound() {

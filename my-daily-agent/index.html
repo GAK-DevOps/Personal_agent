@@ -7,6 +7,8 @@
     <meta name="description"
         content="Your Personal AI Daily Agent - Smart schedule management and intelligent reminders">
     <title>Lokha - My Personal Agent</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -210,6 +212,15 @@
         </div>
     </div>
 
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered!'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
     <script src="voice-fix.js"></script>
     <script src="app.js"></script>
 </body>
