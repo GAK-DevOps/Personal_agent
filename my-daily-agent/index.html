@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Your Personal AI Daily Agent - Smart schedule management and intelligent reminders">
+    <title>Lokha - My Personal Agent</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="agent-avatar">
+                    <div class="avatar-circle">
+                        <span class="avatar-icon">🤖</span>
+                    </div>
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="header-text">
+                    <h1>Lokha</h1>
+                    <p class="tagline">Your intelligent daily companion</p>
+                </div>
+                <button class="settings-btn" id="settingsBtn">⚙️</button>
+            </div>
+            <div class="current-time" id="currentTime"></div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Chat/Agent Interface -->
+            <section class="agent-chat" id="agentChat">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message agent-message">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <p>Hi! I'm Lokha, your personal daily agent. I'll help you stay on track with your schedule
+                                and
+                                remind you of important tasks.</p>
+                            <p>Let's get started! Tell me about your daily routine, or add your first task.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" class="chat-input"
+                        placeholder="Ask me anything or describe your routine...">
+                    <button class="voice-btn" id="voiceBtn" title="Click to speak">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                            <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                    </button>
+                    <button class="send-btn" id="sendBtn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                        </svg>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Today's Schedule -->
+            <section class="schedule-section">
+                <div class="section-header">
+                    <h2>Today's Schedule</h2>
+                    <button class="add-task-btn" id="addTaskBtn">+ Add Task</button>
+                </div>
+                <div class="tasks-container" id="tasksContainer">
+                    <!-- Tasks will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="quick-actions">
+                <h3>Quick Actions</h3>
+                <div class="actions-grid">
+                    <button class="action-card" id="viewScheduleBtn">
+                        <span class="action-icon">📅</span>
+                        <span class="action-label">View Full Schedule</span>
+                    </button>
+                    <button class="action-card" id="addRoutineBtn">
+                        <span class="action-icon">🔄</span>
+                        <span class="action-label">Add Routine</span>
+                    </button>
+                    <button class="action-card" id="statsBtn">
+                        <span class="action-icon">📊</span>
+                        <span class="action-label">My Stats</span>
+                    </button>
+                    <button class="action-card" id="trainAgentBtn">
+                        <span class="action-icon">🧠</span>
+                        <span class="action-label">Train Agent</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Modal for Adding Tasks -->
+        <div class="modal" id="addTaskModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add New Task</h2>
+                    <button class="close-btn" id="closeTaskModal">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="taskTitle">Task Name</label>
+                        <input type="text" id="taskTitle" placeholder="e.g., Morning workout">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskTime">Time</label>
+                        <input type="time" id="taskTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDays">Repeat</label>
+                        <div class="days-selector" id="daysSelector">
+                            <button class="day-btn" data-day="mon">Mon</button>
+                            <button class="day-btn" data-day="tue">Tue</button>
+                            <button class="day-btn" data-day="wed">Wed</button>
+                            <button class="day-btn" data-day="thu">Thu</button>
+                            <button class="day-btn" data-day="fri">Fri</button>
+                            <button class="day-btn" data-day="sat">Sat</button>
+                            <button class="day-btn" data-day="sun">Sun</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskNotes">Notes (Optional)</label>
+                        <textarea id="taskNotes" rows="3" placeholder="Any additional details..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableReminder" checked>
+                            Enable reminder notifications
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelTaskBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveTaskBtn">Save Task</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-btn" id="closeSettingsModal">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="userName">Your Name</label>
+                        <input type="text" id="userName" placeholder="How should I address you?">
+                    </div>
+                    <div class="form-group">
+                        <label for="timezone">Timezone</label>
+                        <select id="timezone">
+                            <option value="America/Chicago">Central Time (CT)</option>
+                            <option value="America/New_York">Eastern Time (ET)</option>
+                            <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                            <option value="America/Denver">Mountain Time (MT)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableNotifications" checked>
+                            Enable push notifications
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableSound" checked>
+                            Play sound with reminders
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableVoiceResponse" checked>
+                            Enable voice responses (speaks answers)
+                        </label>
+                        <button class="btn btn-secondary" id="testVoiceBtn"
+                            style="margin-top: 5px; width: 100%; font-size: 0.8rem; padding: 5px;">🔊 Test Voice &
+                            Unlock Audio</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="reminderAdvance">Remind me before</label>
+                        <select id="reminderAdvance">
+                            <option value="0">At the time</option>
+                            <option value="5">5 minutes before</option>
+                            <option value="10">10 minutes before</option>
+                            <option value="15">15 minutes before</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelSettingsBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="voice-fix.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
