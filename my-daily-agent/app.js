@@ -202,9 +202,21 @@ class DailyAgent {
             return greetings[Math.floor(Math.random() * greetings.length)];
         }
 
-        // Action: Add Task
-        if (/\b(add|create|new|remind|set)\b.*\b(task|reminder|todo|appointment)\b/.test(lowerMessage) ||
-            /\bremind me\b/.test(lowerMessage)) {
+        // Action: Add Task (Now with parsing!)
+        if (/\b(add|create|new|remind|set|schedule)\b/.test(lowerMessage)) {
+            const taskInfo = this.parseNaturalLanguage(message);
+            if (taskInfo.title || taskInfo.time) {
+                this.openAddTaskModal(taskInfo);
+                let response = `I've prepared that for you! `;
+                if (taskInfo.title && taskInfo.time) {
+                    response += `Scheduled "${taskInfo.title}" at ${taskInfo.time}. Does this look right?`;
+                } else if (taskInfo.time) {
+                    response += `I set the time to ${taskInfo.time}. What's the task name?`;
+                } else {
+                    response += `I've started the form. When should I remind you about "${taskInfo.title}"?`;
+                }
+                return response;
+            }
             this.openAddTaskModal();
             return `Of course! I've opened the task form. Tell me what "${userName}" needs to get done!`;
         }
@@ -258,6 +270,42 @@ class DailyAgent {
 
         // Default
         return `I'm listening, ${userName}! I'm still learning your patterns, but I can certainly help you with your schedule or reminders if you'd like.`;
+    }
+
+    parseNaturalLanguage(text) {
+        const lower = text.toLowerCase();
+        let time = '';
+        let title = '';
+
+        // Time extraction (Basic regex for times like 8pm, 8:30 am, 20:00)
+        let timeMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+        if (timeMatch) {
+            let hours = parseInt(timeMatch[1]);
+            const minutes = timeMatch[2] || '00';
+            const ampm = timeMatch[3].toLowerCase();
+
+            if (ampm === 'pm' && hours < 12) hours += 12;
+            if (ampm === 'am' && hours === 12) hours = 0;
+
+            time = `${hours.toString().padStart(2, '0')}:${minutes}`;
+        } else {
+            // Check for 24h format like 20:00
+            timeMatch = text.match(/([012]?\d):(\d{2})/);
+            if (timeMatch) {
+                time = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+            }
+        }
+
+        // Title extraction (Everything between 'add/remind me to' and 'at/by/today')
+        const titleMatch = lower.match(/(?:add|remind me to|create|new|schedule|set)\s+(.*?)(?:\s+at|\s+by|\s+today|\s+tonight|$)/);
+        if (titleMatch) {
+            title = titleMatch[1].trim();
+            // Clean up common filler words
+            title = title.replace(/\b(a|the|task|reminder|appointment|schedule|agenda)\b/gi, '').trim();
+            title = title.charAt(0).toUpperCase() + title.slice(1);
+        }
+
+        return { title, time };
     }
 
     escapeHtml(text) {
@@ -374,7 +422,12 @@ class DailyAgent {
     // TASK MANAGEMENT
     // ========================================
 
-    openAddTaskModal() {
+    openAddTaskModal(prefill = null) {
+        this.clearTaskForm();
+        if (prefill) {
+            if (prefill.title) document.getElementById('taskTitle').value = prefill.title;
+            if (prefill.time) document.getElementById('taskTime').value = prefill.time;
+        }
         document.getElementById('addTaskModal').classList.add('active');
         document.getElementById('taskTitle').focus();
     }
