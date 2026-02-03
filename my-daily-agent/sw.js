@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lokha-v1';
+const CACHE_NAME = 'lokha-v2';
 const ASSETS = [
     './',
     './index.html',
@@ -18,20 +18,35 @@ self.addEventListener('install', (event) => {
     );
 });
 
+// Activate Event - Clean up old caches
 self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
+    event.waitUntil(
+        Promise.all([
+            clients.claim(),
+            caches.keys().then((cacheNames) => {
+                return Promise.all(
+                    cacheNames.map((cacheName) => {
+                        if (cacheName !== CACHE_NAME) {
+                            console.log('Clearing old cache:', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            })
+        ])
+    );
 });
 
-// Fetch Event (Offline Support)
+// Fetch Event (Network First for better debugging)
 self.addEventListener('fetch', (event) => {
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
         })
     );
 });
 
-// Notification Close Event
+// Notification Events
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
@@ -39,7 +54,6 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-// Background Push (Placeholder for future real push)
 self.addEventListener('push', (event) => {
     const data = event.data ? event.data.json() : { title: 'Notification', body: 'New alert!' };
     const options = {
