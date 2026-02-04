@@ -610,9 +610,21 @@ class DailyAgent {
                         <div class="task-title">${this.escapeHtml(task.title)}</div>
                         <div class="task-time">${this.formatTime(task.time)}</div>
                     </div>
+                    <button class="delete-task-btn" onclick="event.stopPropagation(); agent.deleteTask(${task.id})">
+                        🗑️
+                    </button>
                 </div>
             `;
         }).join('');
+    }
+
+    deleteTask(taskId) {
+        if (confirm('Are you sure you want to delete this task?')) {
+            this.tasks = this.tasks.filter(t => t.id !== taskId);
+            this.saveData();
+            this.renderTasks();
+            this.addMessageToChat('agent', 'Task deleted successfully.');
+        }
     }
 
     getTodayTasks() {

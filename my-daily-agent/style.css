@@ -556,6 +556,26 @@ body::before {
     text-decoration: line-through;
 }
 
+.delete-task-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+    opacity: 0.3;
+}
+
+.task-card:hover .delete-task-btn {
+    opacity: 1;
+}
+
+.delete-task-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    transform: scale(1.1);
+}
+
 /* ========================================
    QUICK ACTIONS
    ======================================== */
