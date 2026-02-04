@@ -655,11 +655,14 @@ class DailyAgent {
 
         todayTasks.forEach(task => {
             if (!task.completed && task.enableReminder) {
-                if (!task.reminded) task.reminded = {};
                 const today = new Date().toDateString();
+                if (!task.remindersSent) task.remindersSent = {};
 
-                if (this.shouldRemind(currentTime, task.time) && task.reminded[today] !== currentTime) {
-                    task.reminded[today] = currentTime;
+                const diff = this.getMinutesDiff(currentTime, task.time);
+
+                // Remind if we are within the advance window (e.g., 5 mins before) up to 1 minute after
+                if (diff <= this.settings.reminderAdvance && diff >= -1 && !task.remindersSent[today]) {
+                    task.remindersSent[today] = true;
                     this.sendReminder(task);
                     this.saveData();
                 }
@@ -667,16 +670,14 @@ class DailyAgent {
         });
     }
 
-    shouldRemind(currentTime, taskTime) {
+    getMinutesDiff(currentTime, taskTime) {
         const [currentHours, currentMinutes] = currentTime.split(':').map(Number);
         const [taskHours, taskMinutes] = taskTime.split(':').map(Number);
 
         const currentTotalMinutes = currentHours * 60 + currentMinutes;
         const taskTotalMinutes = taskHours * 60 + taskMinutes;
 
-        const diff = taskTotalMinutes - currentTotalMinutes;
-
-        return diff === this.settings.reminderAdvance;
+        return taskTotalMinutes - currentTotalMinutes;
     }
 
     trackScreenTime() {
@@ -740,7 +741,10 @@ class DailyAgent {
         this.addMessageToChat('agent', reminderMsg);
 
         if (this.settings.enableVoiceResponse) {
-            this.speak(`Pardon me, it is time for ${task.title}.`);
+            // Give the audio context a moment to breathe before speaking
+            setTimeout(() => {
+                this.speak(`Excuse me, this is your reminder for: ${task.title}.`);
+            }, 1000);
         }
     }
 
