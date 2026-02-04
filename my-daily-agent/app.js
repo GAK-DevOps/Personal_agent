@@ -11,13 +11,14 @@ class DailyAgent {
             enableNotifications: true,
             enableSound: true,
             reminderAdvance: 5,
-            enableVoiceResponse: true,
-            enableScreenTimeLimit: false,
-            dailyLimit: 2
+            dailyLimit: 2,
+            enableWakeLock: false
         };
-        this.usage = { date: new Date().toDateString(), minutes: 0 };
+        this.usage = { date: new Date().toDateString(), minutes: 0, warned: false };
+        this.trainingData = [];
         this.conversationHistory = [];
         this.synthesis = window.speechSynthesis;
+        this.wakeLock = null;
 
         this.init();
     }
@@ -47,6 +48,7 @@ class DailyAgent {
         const savedSettings = localStorage.getItem('dailyAgentSettings');
         const savedConversation = localStorage.getItem('dailyAgentConversation');
         const savedUsage = localStorage.getItem('dailyAgentUsage');
+        const savedTraining = localStorage.getItem('dailyAgentTraining');
 
         if (savedTasks) {
             this.tasks = JSON.parse(savedTasks);
@@ -64,6 +66,9 @@ class DailyAgent {
                 this.usage = usage;
             }
         }
+        if (savedTraining) {
+            this.trainingData = JSON.parse(savedTraining);
+        }
     }
 
     saveData() {
@@ -71,6 +76,7 @@ class DailyAgent {
         localStorage.setItem('dailyAgentSettings', JSON.stringify(this.settings));
         localStorage.setItem('dailyAgentConversation', JSON.stringify(this.conversationHistory));
         localStorage.setItem('dailyAgentUsage', JSON.stringify(this.usage));
+        localStorage.setItem('dailyAgentTraining', JSON.stringify(this.trainingData));
     }
 
     applySettings() {
@@ -100,6 +106,12 @@ class DailyAgent {
             }
         }
         if (dailyLimitEl) dailyLimitEl.value = this.settings.dailyLimit;
+
+        const wakeLockEl = document.getElementById('enableWakeLock');
+        if (wakeLockEl) {
+            wakeLockEl.checked = this.settings.enableWakeLock;
+            if (this.settings.enableWakeLock) this.requestWakeLock();
+        }
     }
 
     // ========================================
@@ -131,6 +143,10 @@ class DailyAgent {
             this.speak('Hello! My name is Lokha. I am ready to help you with your daily schedule.');
         });
 
+        document.getElementById('testNotifBtn').addEventListener('click', () => {
+            this.sendTestNotification();
+        });
+
         const screenTimeCheck = document.getElementById('enableScreenTimeLimit');
         if (screenTimeCheck) {
             screenTimeCheck.addEventListener('change', (e) => {
@@ -153,6 +169,16 @@ class DailyAgent {
         document.getElementById('addRoutineBtn').addEventListener('click', () => this.addRoutine());
         document.getElementById('statsBtn').addEventListener('click', () => this.showStats());
         document.getElementById('trainAgentBtn').addEventListener('click', () => this.trainAgent());
+
+        document.getElementById('closeStatsModal').addEventListener('click', () => this.closeModal('statsModal'));
+        document.getElementById('closeStatsBtn').addEventListener('click', () => this.closeModal('statsModal'));
+        document.getElementById('closeTrainingModal').addEventListener('click', () => this.closeModal('trainingModal'));
+        document.getElementById('cancelTrainingBtn').addEventListener('click', () => this.closeModal('trainingModal'));
+        document.getElementById('saveTrainingBtn').addEventListener('click', () => this.saveTrainingLesson());
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this.checkReminders();
+        });
 
         // Close modals on outside click
         document.querySelectorAll('.modal').forEach(modal => {
@@ -233,6 +259,14 @@ class DailyAgent {
             } else if (/\b(no|wait|stop|change|cancel)\b/.test(lowerMessage)) {
                 this.closeModal('addTaskModal');
                 return `No problem. I've cancelled that for you.`;
+            }
+        }
+
+        // Custom trained patterns
+        for (const pattern of this.trainingData) {
+            const regex = new RegExp(`\\b${pattern.trigger}\\b`, 'i');
+            if (regex.test(lowerMessage)) {
+                return pattern.response.replace('{userName}', userName);
             }
         }
 
@@ -746,6 +780,13 @@ class DailyAgent {
         this.settings.reminderAdvance = parseInt(document.getElementById('reminderAdvance').value);
         this.settings.enableScreenTimeLimit = document.getElementById('enableScreenTimeLimit').checked;
         this.settings.dailyLimit = parseFloat(document.getElementById('dailyLimit').value) || 2;
+        this.settings.enableWakeLock = document.getElementById('enableWakeLock').checked;
+
+        if (this.settings.enableWakeLock) {
+            this.requestWakeLock();
+        } else {
+            this.releaseWakeLock();
+        }
 
         this.saveData();
         this.closeModal('settingsModal');
@@ -762,34 +803,151 @@ class DailyAgent {
     // ========================================
 
     viewFullSchedule() {
-        const allTasks = this.tasks.length;
-        const completed = this.tasks.filter(t => t.completed).length;
+        const todayTasks = this.getTodayTasks();
+        if (todayTasks.length === 0) {
+            this.addMessageToChat('agent', "Your schedule is currently clear. Want to add something?");
+            return;
+        }
 
-        this.addMessageToChat('agent',
-            `You have ${allTasks} total task(s) in your schedule. ${completed} completed. Would you like me to show you a specific day?`
-        );
+        let scheduleMsg = "📅 **Today's Schedule:**\n";
+        todayTasks.sort((a, b) => a.time.localeCompare(b.time)).forEach(t => {
+            scheduleMsg += `• ${this.formatTime(t.time)}: ${t.title} ${t.completed ? '✅' : '⏳'}\n`;
+        });
+        this.addMessageToChat('agent', scheduleMsg);
     }
 
     addRoutine() {
-        this.addMessageToChat('agent',
-            'Let\'s set up a routine! Tell me what you do regularly. For example: "I exercise every morning at 7 AM" or "I check emails at 9 AM on weekdays"'
-        );
+        const routines = [
+            { title: "Morning Kickstart", tasks: [{ t: "Drink Water", time: "07:00" }, { t: "Exercise", time: "07:15" }, { t: "Check Emails", time: "08:30" }] },
+            { title: "Evening Wind Down", tasks: [{ t: "Read", time: "21:30" }, { t: "Meditate", time: "22:00" }, { t: "Plan Tomorrow", time: "22:15" }] }
+        ];
+
+        const choice = routines[Math.floor(Math.random() * routines.length)];
+        choice.tasks.forEach(task => {
+            this.tasks.push({
+                id: Date.now() + Math.random(),
+                title: task.t,
+                time: task.time,
+                days: ['today'],
+                notes: `Added from ${choice.title}`,
+                enableReminder: true,
+                completed: false,
+                createdAt: new Date().toISOString()
+            });
+        });
+
+        this.saveData();
+        this.renderTasks();
+        this.addMessageToChat('agent', `Added the **${choice.title}** routine to your day! 🚀`);
     }
 
     showStats() {
         const total = this.tasks.length;
         const completed = this.tasks.filter(t => t.completed).length;
         const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const screenUsage = Math.round((this.usage.minutes / 60) * 10) / 10;
 
-        this.addMessageToChat('agent',
-            `📊 Your Stats:\n• Total tasks: ${total}\n• Completed: ${completed}\n• Completion rate: ${completionRate}%\n\nKeep up the great work!`
-        );
+        const body = document.getElementById('statsBody');
+        body.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 3rem; font-weight: bold; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${completionRate}%</div>
+                <div style="color: var(--color-text-muted);">Overall Completion</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 1.2rem; font-weight: 600;">${completed}/${total}</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-muted);">Tasks Done</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 1.2rem; font-weight: 600;">${screenUsage}h</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-muted);">Screen Time</div>
+                </div>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; color: var(--color-text-primary); border-left: 4px solid var(--color-primary);">
+                <strong>Lokha's Insight:</strong> ${completionRate > 80 ? "You're a productivity machine! 🚀" : "Consistent progress is the key. You've got this! 💪"}
+            </div>
+        `;
+        document.getElementById('statsModal').classList.add('active');
     }
 
     trainAgent() {
-        this.addMessageToChat('agent',
-            'I\'m always learning from you! The more you use me, the better I understand your patterns. Tell me about your typical day, and I\'ll help you optimize your schedule!'
-        );
+        this.renderTrainingList();
+        document.getElementById('trainingModal').classList.add('active');
+    }
+
+    saveTrainingLesson() {
+        const trigger = document.getElementById('trainTrigger').value.trim();
+        const response = document.getElementById('trainResponse').value.trim();
+
+        if (trigger && response) {
+            this.trainingData.push({ trigger, response });
+            this.saveData();
+            this.renderTrainingList();
+            document.getElementById('trainTrigger').value = '';
+            document.getElementById('trainResponse').value = '';
+            this.addMessageToChat('agent', `I've learned a new pattern! Now when you say "${trigger}", I'll know what to do.`);
+        }
+    }
+
+    renderTrainingList() {
+        const list = document.getElementById('customPatternsList');
+        if (this.trainingData.length === 0) {
+            list.innerHTML = '<p style="font-size: 0.8rem; color: var(--color-text-muted);">No custom lessons yet.</p>';
+            return;
+        }
+        list.innerHTML = '<strong style="display:block; margin-bottom:10px; font-size: 0.9rem;">Current Lessons:</strong>' + this.trainingData.map((p, i) => `
+            <div style="font-size: 0.8rem; margin-top: 5px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--color-text-secondary);">"${p.trigger}" → ${p.response.substring(0, 20)}...</span>
+                <button onclick="agent.deleteLesson(${i})" style="background:rgba(255,77,77,0.1); border:none; color: #ff4d4d; cursor:pointer; padding: 2px 8px; border-radius: 4px;">×</button>
+            </div>
+        `).join('');
+    }
+
+    deleteLesson(index) {
+        this.trainingData.splice(index, 1);
+        this.saveData();
+        this.renderTrainingList();
+    }
+
+    // ========================================
+    // ADVANCED BACKGROUND UTILITIES
+    // ========================================
+
+    async requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('✅ Screen Wake Lock active');
+            } catch (err) {
+                console.warn(`Wake Lock Error: ${err.name}, ${err.message}`);
+            }
+        }
+    }
+
+    releaseWakeLock() {
+        if (this.wakeLock) {
+            this.wakeLock.release();
+            this.wakeLock = null;
+        }
+    }
+
+    sendTestNotification() {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification('Lokha Test Alert', {
+                    body: "If you're reading this, Lokha can reach you! 🔔",
+                    icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png'
+                });
+            });
+        } else if (Notification.permission === 'granted') {
+            new Notification('Lokha Test Alert', {
+                body: "If you're reading this, Lokha can reach you! 🔔",
+                icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png'
+            });
+        } else {
+            this.addMessageToChat('agent', "Notification permission not granted. Please enable it in Settings.");
+            Notification.requestPermission();
+        }
     }
 
     // ========================================

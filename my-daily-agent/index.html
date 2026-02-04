@@ -190,9 +190,12 @@
                             <input type="checkbox" id="enableVoiceResponse" checked>
                             Enable voice responses (speaks answers)
                         </label>
-                        <button class="btn btn-secondary" id="testVoiceBtn"
-                            style="margin-top: 5px; width: 100%; font-size: 0.8rem; padding: 5px;">🔊 Test Voice &
-                            Unlock Audio</button>
+                        <div style="display: flex; gap: 10px; margin-top: 5px;">
+                            <button class="btn btn-secondary" id="testVoiceBtn"
+                                style="flex: 1; font-size: 0.8rem; padding: 8px;">🔊 Test Voice</button>
+                            <button class="btn btn-secondary" id="testNotifBtn"
+                                style="flex: 1; font-size: 0.8rem; padding: 8px;">� Test Notif</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="reminderAdvance">Remind me before</label>
@@ -206,17 +209,72 @@
                     <div class="form-group" style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
                         <label>
                             <input type="checkbox" id="enableScreenTimeLimit">
-                            Enable Screen Habit Monitor
+                            Screen Habit Monitor
                         </label>
                         <div id="screenTimeLimitContainer" style="margin-top: 10px; display: none;">
                             <label for="dailyLimit">Daily Screen Limit (Hours)</label>
                             <input type="number" id="dailyLimit" min="1" max="12" value="2">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableWakeLock">
+                            Stay Awake Mode (Prevents screen lock)
+                        </label>
+                        <p style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 4px;">Recommended for
+                            "Home Screen" use to ensure notifications arrive on time.</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" id="cancelSettingsBtn">Cancel</button>
                     <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Stats -->
+        <div class="modal" id="statsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Your Productivity Stats</h2>
+                    <button class="close-btn" id="closeStatsModal">×</button>
+                </div>
+                <div class="modal-body" id="statsBody" style="color: var(--color-text-primary);">
+                    <!-- Stats will be injected here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="closeStatsBtn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Training -->
+        <div class="modal" id="trainingModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Train Lokha</h2>
+                    <button class="close-btn" id="closeTrainingModal">×</button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 15px;">Teaching
+                        Lokha helps it recognize your personal patterns. Add custom keywords or phrases you want Lokha
+                        to respond to.</p>
+                    <div class="form-group">
+                        <label>When I say...</label>
+                        <input type="text" id="trainTrigger" placeholder="e.g., 'Bedtime'">
+                    </div>
+                    <div class="form-group">
+                        <label>Lokha should say/do...</label>
+                        <textarea id="trainResponse" placeholder="e.g., 'Goodnight Akhil! Sleep well.'"></textarea>
+                    </div>
+                    <div id="customPatternsList"
+                        style="max-height: 150px; overflow-y: auto; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                        <!-- Custom patterns will appear here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelTrainingBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveTrainingBtn">Save Lesson</button>
                 </div>
             </div>
         </div>
@@ -231,8 +289,8 @@
             });
         }
     </script>
-    <script src="voice-fix.js?v=7"></script>
-    <script src="app.js?v=7"></script>
+    <script src="voice-fix.js?v=8"></script>
+    <script src="app.js?v=8"></script>
 </body>
 
 </html>
