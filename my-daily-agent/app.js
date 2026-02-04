@@ -14,6 +14,7 @@ class DailyAgent {
             enableVoiceResponse: true
         };
         this.conversationHistory = [];
+        this.synthesis = window.speechSynthesis;
 
         this.init();
     }
@@ -188,11 +189,15 @@ class DailyAgent {
         // Check if modal is open and user is confirming
         const modal = document.getElementById('addTaskModal');
         if (modal && modal.classList.contains('active')) {
-            if (/\b(yes|ok|okay|fine|good|looks good|save|do it|correct|yep|yeah)\b/.test(lowerMessage)) {
-                setTimeout(() => this.saveTask(), 100);
-                return `Done! I've saved that to your schedule. What's next?`;
+            if (/\b(yes|ok|okay|fine|good|looks good|save|do it|correct|yep|yeah|yup|sure)\b/.test(lowerMessage)) {
+                const saveBtn = document.getElementById('saveTaskBtn');
+                if (saveBtn) {
+                    setTimeout(() => saveBtn.click(), 100);
+                    return `Done! I've saved that to your schedule. What's next?`;
+                }
             } else if (/\b(no|wait|stop|change|cancel)\b/.test(lowerMessage)) {
-                return `No problem. You can adjust the details manually in the form!`;
+                this.closeModal('addTaskModal');
+                return `No problem. I've cancelled that for you.`;
             }
         }
 

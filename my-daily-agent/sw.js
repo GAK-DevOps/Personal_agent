@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lokha-v3';
+const CACHE_NAME = 'lokha-v4';
 const ASSETS = [
     './',
     './index.html',
