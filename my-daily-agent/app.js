@@ -21,6 +21,8 @@ class DailyAgent {
         this.synthesis = window.speechSynthesis;
         this.wakeLock = null;
         this.alarmInterval = null;
+        this.heartbeatInterval = null;
+        this.silentAudio = null;
 
         this.init();
     }
@@ -117,6 +119,12 @@ class DailyAgent {
 
         const alarmEl = document.getElementById('enableAlarm');
         if (alarmEl) alarmEl.checked = this.settings.enableAlarm;
+
+        if (this.settings.enableAlarm || this.settings.enableWakeLock) {
+            this.startHeartbeat();
+        } else {
+            this.stopHeartbeat();
+        }
     }
 
     // ========================================
@@ -184,7 +192,11 @@ class DailyAgent {
         document.getElementById('stopAlarmBtn').addEventListener('click', () => this.stopAlarm());
 
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') this.checkReminders();
+            if (document.visibilityState === 'visible') {
+                console.log('☀️ Agent Waking Up...');
+                this.checkReminders();
+                if (this.settings.enableWakeLock) this.requestWakeLock();
+            }
         });
 
         // Close modals on outside click
@@ -834,6 +846,12 @@ class DailyAgent {
             this.releaseWakeLock();
         }
 
+        if (this.settings.enableAlarm || this.settings.enableWakeLock) {
+            this.startHeartbeat();
+        } else {
+            this.stopHeartbeat();
+        }
+
         this.saveData();
         this.closeModal('settingsModal');
 
@@ -993,6 +1011,40 @@ class DailyAgent {
         } else {
             this.addMessageToChat('agent', "Notification permission not granted. Please enable it in Settings.");
             Notification.requestPermission();
+        }
+    }
+
+    // ========================================
+    // BACKGROUND SURVIVAL (HEARTBEAT)
+    // ========================================
+
+    startHeartbeat() {
+        if (this.heartbeatInterval) return;
+
+        console.log('💓 Starting Service Heartbeat...');
+
+        // Create a silent audio element to keep the background process alive
+        if (!this.silentAudio) {
+            this.silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+            this.silentAudio.loop = true;
+        }
+
+        // Pulse the logic every 30 seconds instead of 60 for higher accuracy
+        this.heartbeatInterval = setInterval(() => {
+            if (this.settings.enableAlarm || this.settings.enableWakeLock) {
+                this.silentAudio.play().catch(() => { });
+                this.checkReminders();
+            }
+        }, 30000);
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+        if (this.silentAudio) {
+            this.silentAudio.pause();
         }
     }
 
