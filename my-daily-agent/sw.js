@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lokha-v4';
+const CACHE_NAME = 'lokha-v5';
 const ASSETS = [
     './',
     './index.html',
@@ -50,7 +50,14 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
-        clients.openWindow('/')
+        clients.matchAll({ type: 'window' }).then((clientList) => {
+            // Check if there's already a window open with our app
+            for (const client of clientList) {
+                if ('focus' in client) return client.focus();
+            }
+            // If no window is open, open a new one to the app's root
+            if (clients.openWindow) return clients.openWindow('./');
+        })
     );
 });
 
