@@ -11,8 +11,11 @@ class DailyAgent {
             enableNotifications: true,
             enableSound: true,
             reminderAdvance: 5,
-            enableVoiceResponse: true
+            enableVoiceResponse: true,
+            enableScreenTimeLimit: false,
+            dailyLimit: 2
         };
+        this.usage = { date: new Date().toDateString(), minutes: 0 };
         this.conversationHistory = [];
         this.synthesis = window.speechSynthesis;
 
@@ -29,7 +32,10 @@ class DailyAgent {
         this.requestNotificationPermission();
 
         // Check for reminders every minute
-        setInterval(() => this.checkReminders(), 60000);
+        setInterval(() => {
+            this.checkReminders();
+            this.trackScreenTime();
+        }, 60000);
     }
 
     // ========================================
@@ -40,6 +46,7 @@ class DailyAgent {
         const savedTasks = localStorage.getItem('dailyAgentTasks');
         const savedSettings = localStorage.getItem('dailyAgentSettings');
         const savedConversation = localStorage.getItem('dailyAgentConversation');
+        const savedUsage = localStorage.getItem('dailyAgentUsage');
 
         if (savedTasks) {
             this.tasks = JSON.parse(savedTasks);
@@ -51,12 +58,19 @@ class DailyAgent {
         if (savedConversation) {
             this.conversationHistory = JSON.parse(savedConversation);
         }
+        if (savedUsage) {
+            const usage = JSON.parse(savedUsage);
+            if (usage.date === new Date().toDateString()) {
+                this.usage = usage;
+            }
+        }
     }
 
     saveData() {
         localStorage.setItem('dailyAgentTasks', JSON.stringify(this.tasks));
         localStorage.setItem('dailyAgentSettings', JSON.stringify(this.settings));
         localStorage.setItem('dailyAgentConversation', JSON.stringify(this.conversationHistory));
+        localStorage.setItem('dailyAgentUsage', JSON.stringify(this.usage));
     }
 
     applySettings() {
@@ -66,6 +80,9 @@ class DailyAgent {
         const soundEl = document.getElementById('enableSound');
         const voiceEl = document.getElementById('enableVoiceResponse');
         const reminderEl = document.getElementById('reminderAdvance');
+        const screenTimeEl = document.getElementById('enableScreenTimeLimit');
+        const dailyLimitEl = document.getElementById('dailyLimit');
+        const screenTimeContainer = document.getElementById('screenTimeLimitContainer');
 
         if (userNameEl && this.settings.userName) {
             userNameEl.value = this.settings.userName;
@@ -75,6 +92,14 @@ class DailyAgent {
         if (soundEl) soundEl.checked = this.settings.enableSound;
         if (voiceEl) voiceEl.checked = this.settings.enableVoiceResponse;
         if (reminderEl) reminderEl.value = this.settings.reminderAdvance;
+
+        if (screenTimeEl) {
+            screenTimeEl.checked = this.settings.enableScreenTimeLimit;
+            if (screenTimeContainer) {
+                screenTimeContainer.style.display = this.settings.enableScreenTimeLimit ? 'block' : 'none';
+            }
+        }
+        if (dailyLimitEl) dailyLimitEl.value = this.settings.dailyLimit;
     }
 
     // ========================================
@@ -105,6 +130,16 @@ class DailyAgent {
         document.getElementById('testVoiceBtn').addEventListener('click', () => {
             this.speak('Hello! My name is Lokha. I am ready to help you with your daily schedule.');
         });
+
+        const screenTimeCheck = document.getElementById('enableScreenTimeLimit');
+        if (screenTimeCheck) {
+            screenTimeCheck.addEventListener('change', (e) => {
+                const container = document.getElementById('screenTimeLimitContainer');
+                if (container) {
+                    container.style.display = e.target.checked ? 'block' : 'none';
+                }
+            });
+        }
 
         // Day selector
         document.querySelectorAll('.day-btn').forEach(btn => {
@@ -610,6 +645,42 @@ class DailyAgent {
         return diff === this.settings.reminderAdvance;
     }
 
+    trackScreenTime() {
+        if (!this.settings.enableScreenTimeLimit) return;
+
+        const today = new Date().toDateString();
+        if (this.usage.date !== today) {
+            this.usage = { date: today, minutes: 0, warned: false };
+        }
+
+        this.usage.minutes += 1;
+
+        const limitMinutes = (this.settings.dailyLimit || 2) * 60;
+        if (this.usage.minutes >= limitMinutes && !this.usage.warned) {
+            this.usage.warned = true;
+            this.sendScreenTimeWarning();
+        }
+        this.saveData();
+    }
+
+    sendScreenTimeWarning() {
+        const msg = `⚠️ Lokha Alert: You've reached your ${this.settings.dailyLimit}h screen time goal today. Time for a break?`;
+        this.addMessageToChat('agent', msg);
+
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification('Screen Time Limit reached', {
+                    body: msg,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png'
+                });
+            });
+        }
+
+        if (this.settings.enableVoiceResponse) {
+            this.speak(`Hey ${this.settings.userName || 'there'}, you've hit your screen time limit for today. Let's take a break and rest your eyes!`);
+        }
+    }
+
     sendReminder(task) {
         // Use Service Worker for better mobile support if available
         if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -673,6 +744,8 @@ class DailyAgent {
         this.settings.enableSound = document.getElementById('enableSound').checked;
         this.settings.enableVoiceResponse = document.getElementById('enableVoiceResponse').checked;
         this.settings.reminderAdvance = parseInt(document.getElementById('reminderAdvance').value);
+        this.settings.enableScreenTimeLimit = document.getElementById('enableScreenTimeLimit').checked;
+        this.settings.dailyLimit = parseFloat(document.getElementById('dailyLimit').value) || 2;
 
         this.saveData();
         this.closeModal('settingsModal');

@@ -203,6 +203,16 @@
                             <option value="15">15 minutes before</option>
                         </select>
                     </div>
+                    <div class="form-group" style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <label>
+                            <input type="checkbox" id="enableScreenTimeLimit">
+                            Enable Screen Habit Monitor
+                        </label>
+                        <div id="screenTimeLimitContainer" style="margin-top: 10px; display: none;">
+                            <label for="dailyLimit">Daily Screen Limit (Hours)</label>
+                            <input type="number" id="dailyLimit" min="1" max="12" value="2">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" id="cancelSettingsBtn">Cancel</button>
@@ -221,8 +231,8 @@
             });
         }
     </script>
-    <script src="voice-fix.js?v=6"></script>
-    <script src="app.js?v=6"></script>
+    <script src="voice-fix.js?v=7"></script>
+    <script src="app.js?v=7"></script>
 </body>
 
 </html>
