@@ -12,13 +12,15 @@ class DailyAgent {
             enableSound: true,
             reminderAdvance: 5,
             dailyLimit: 2,
-            enableWakeLock: false
+            enableWakeLock: false,
+            enableAlarm: false
         };
         this.usage = { date: new Date().toDateString(), minutes: 0, warned: false };
         this.trainingData = [];
         this.conversationHistory = [];
         this.synthesis = window.speechSynthesis;
         this.wakeLock = null;
+        this.alarmInterval = null;
 
         this.init();
     }
@@ -112,6 +114,9 @@ class DailyAgent {
             wakeLockEl.checked = this.settings.enableWakeLock;
             if (this.settings.enableWakeLock) this.requestWakeLock();
         }
+
+        const alarmEl = document.getElementById('enableAlarm');
+        if (alarmEl) alarmEl.checked = this.settings.enableAlarm;
     }
 
     // ========================================
@@ -175,6 +180,8 @@ class DailyAgent {
         document.getElementById('closeTrainingModal').addEventListener('click', () => this.closeModal('trainingModal'));
         document.getElementById('cancelTrainingBtn').addEventListener('click', () => this.closeModal('trainingModal'));
         document.getElementById('saveTrainingBtn').addEventListener('click', () => this.saveTrainingLesson());
+
+        document.getElementById('stopAlarmBtn').addEventListener('click', () => this.stopAlarm());
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') this.checkReminders();
@@ -746,6 +753,40 @@ class DailyAgent {
                 this.speak(`Excuse me, this is your reminder for: ${task.title}.`);
             }, 1000);
         }
+
+        if (this.settings.enableAlarm) {
+            this.startAlarm(task);
+        }
+    }
+
+    startAlarm(task) {
+        this.isAlarming = true;
+        const overlay = document.getElementById('alarmOverlay');
+        const title = document.getElementById('alarmTaskTitle');
+        if (overlay && title) {
+            title.textContent = `TIME FOR: ${task.title.toUpperCase()}`;
+            overlay.style.display = 'flex';
+        }
+
+        // Persistent looping sound and voice
+        this.alarmInterval = setInterval(() => {
+            if (this.settings.enableSound) this.playNotificationSound();
+            if (this.settings.enableVoiceResponse) {
+                this.speak(`Hey! It is time for ${task.title}. Please complete your task.`);
+            }
+        }, 5000);
+    }
+
+    stopAlarm() {
+        this.isAlarming = false;
+        clearInterval(this.alarmInterval);
+        this.alarmInterval = null;
+        if (this.synthesis.speaking) this.synthesis.cancel();
+
+        const overlay = document.getElementById('alarmOverlay');
+        if (overlay) overlay.style.display = 'none';
+
+        this.addMessageToChat('agent', 'Alarm stopped. You\'ve got this! Move fast! 🚀');
     }
 
     playNotificationSound() {
@@ -785,6 +826,7 @@ class DailyAgent {
         this.settings.enableScreenTimeLimit = document.getElementById('enableScreenTimeLimit').checked;
         this.settings.dailyLimit = parseFloat(document.getElementById('dailyLimit').value) || 2;
         this.settings.enableWakeLock = document.getElementById('enableWakeLock').checked;
+        this.settings.enableAlarm = document.getElementById('enableAlarm').checked;
 
         if (this.settings.enableWakeLock) {
             this.requestWakeLock();

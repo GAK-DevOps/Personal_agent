@@ -187,6 +187,12 @@
                     </div>
                     <div class="form-group">
                         <label>
+                            <input type="checkbox" id="enableAlarm">
+                            <b>Persistent Alarm Mode</b> (Repeats until stopped)
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
                             <input type="checkbox" id="enableVoiceResponse" checked>
                             Enable voice responses (speaks answers)
                         </label>
@@ -278,19 +284,40 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered!'))
-                    .catch(err => console.log('Service Worker registration failed:', err));
-            });
-        }
-    </script>
-    <script src="voice-fix.js?v=10"></script>
-    <script src="app.js?v=10"></script>
+        <!-- Alarm Pulse Overlay (Hidden by default) -->
+        <div id="alarmOverlay"
+            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0.6); z-index:9999; flex-direction:column; align-items:center; justify-content:center; text-align:center; backdrop-filter:blur(10px); animation: pulse-red 1s infinite alternate;">
+            <div style="font-size: 5rem; margin-bottom: 20px;">⏰</div>
+            <h1 id="alarmTaskTitle" style="color:white; margin-bottom:30px; padding:0 20px;">TIME FOR TASK!</h1>
+            <button class="btn btn-primary" id="stopAlarmBtn"
+                style="font-size: 1.5rem; padding: 20px 50px; border-radius: 50px; background: white; color: red; font-weight: bold; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">STOP
+                ALARM</button>
+        </div>
+
+        <style>
+            @keyframes pulse-red {
+                from {
+                    background: rgba(255, 0, 0, 0.4);
+                }
+
+                to {
+                    background: rgba(255, 0, 0, 0.8);
+                }
+            }
+        </style>
+
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => console.log('Service Worker registered!'))
+                        .catch(err => console.log('Service Worker registration failed:', err));
+                });
+            }
+        </script>
+        <script src="voice-fix.js?v=11"></script>
+        <script src="app.js?v=11"></script>
 </body>
 
 </html>
