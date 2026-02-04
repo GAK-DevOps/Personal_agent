@@ -561,10 +561,22 @@ body::before {
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
-    padding: 8px;
+    padding: 12px;
+    /* Bigger tap target for mobile */
     border-radius: var(--border-radius-sm);
     transition: all var(--transition-fast);
-    opacity: 0.3;
+    opacity: 0.8;
+    /* More visible by default */
+    z-index: 10;
+    margin-left: auto;
+}
+
+/* Ensure visibility on touch devices */
+@media (hover: none) {
+    .delete-task-btn {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.05);
+    }
 }
 
 .task-card:hover .delete-task-btn {

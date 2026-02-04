@@ -139,10 +139,16 @@ class DailyAgent {
         });
 
         // Voice functionality
-        document.getElementById('voiceBtn').addEventListener('click', () => this.toggleVoiceRecognition());
+        document.getElementById('voiceBtn').addEventListener('click', () => {
+            this.resumeAudio();
+            this.toggleVoiceRecognition();
+        });
 
         // Add task modal
-        document.getElementById('addTaskBtn').addEventListener('click', () => this.openAddTaskModal());
+        document.getElementById('addTaskBtn').addEventListener('click', () => {
+            this.resumeAudio();
+            this.openAddTaskModal();
+        });
         document.getElementById('closeTaskModal').addEventListener('click', () => this.closeModal('addTaskModal'));
         document.getElementById('cancelTaskBtn').addEventListener('click', () => this.closeModal('addTaskModal'));
         document.getElementById('saveTaskBtn').addEventListener('click', () => this.saveTask());
@@ -498,6 +504,7 @@ class DailyAgent {
     }
 
     speak(text) {
+        this.resumeAudio();
         // Stop any ongoing speech
         if (this.synthesis.speaking) {
             this.synthesis.cancel();
@@ -610,7 +617,7 @@ class DailyAgent {
                         <div class="task-title">${this.escapeHtml(task.title)}</div>
                         <div class="task-time">${this.formatTime(task.time)}</div>
                     </div>
-                    <button class="delete-task-btn" onclick="event.stopPropagation(); agent.deleteTask(${task.id})">
+                    <button class="delete-task-btn" onclick="event.stopPropagation(); agent.deleteTask('${task.id}')">
                         🗑️
                     </button>
                 </div>
@@ -620,10 +627,10 @@ class DailyAgent {
 
     deleteTask(taskId) {
         if (confirm('Are you sure you want to delete this task?')) {
-            this.tasks = this.tasks.filter(t => t.id !== taskId);
+            this.tasks = this.tasks.filter(t => String(t.id) !== String(taskId));
             this.saveData();
             this.renderTasks();
-            this.addMessageToChat('agent', 'Task deleted successfully.');
+            this.addMessageToChat('agent', 'Fine. I have removed that task from our list.');
         }
     }
 
@@ -1057,6 +1064,16 @@ class DailyAgent {
         }
         if (this.silentAudio) {
             this.silentAudio.pause();
+        }
+    }
+
+    resumeAudio() {
+        // Resumes audio context which is often suspended by mobile browsers
+        if (this.synthesis && this.synthesis.paused) {
+            this.synthesis.resume();
+        }
+        if (this.silentAudio && this.silentAudio.paused && (this.settings.enableAlarm || this.settings.enableWakeLock)) {
+            this.silentAudio.play().catch(() => { });
         }
     }
 
